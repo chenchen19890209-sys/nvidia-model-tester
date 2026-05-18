@@ -135,10 +135,9 @@ class CapabilityTester(BaseTester):
                 "step-by-step": lambda t: "step" in t.lower(),
                 "creative": lambda t: len(set(t.split())) > 100,
                 "concise": lambda t: len(t) < 600,
-                "accurate": lambda t: True,  # hard to check without reference
             }
-            fn = keyword_map.get(trait, lambda _: False)
-            if fn(content):
+            fn = keyword_map.get(trait)
+            if fn is not None and fn(content):
                 score += 0.05
 
         return min(1.0, score)

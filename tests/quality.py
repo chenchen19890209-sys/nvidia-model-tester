@@ -115,7 +115,9 @@ class QualityTester(BaseTester):
                 )
 
                 # Parse score
-                score = self._parse_judge_score(judge_content)
+                score, parse_warning = self._parse_judge_score(judge_content)
+                if parse_warning:
+                    errors.append(f"{prompt.id}: {parse_warning}")
                 qm.set_score(prompt.id, score / 10.0)
 
             except Exception as e:
@@ -145,15 +147,18 @@ class QualityTester(BaseTester):
     # ── Internal ───────────────────────────────────────────────
 
     @staticmethod
-    def _parse_judge_score(text: str) -> float:
-        """Extract the numeric score from judge output."""
+    def _parse_judge_score(text: str) -> tuple[float, str]:
+        """Extract the numeric score from judge output.
+
+        Returns (score, warning). warning is empty on success.
+        """
         import re
 
         match = re.search(r"Score:\s*(\d+\.?\d*)", text)
         if match:
             try:
                 score = float(match.group(1))
-                return max(1.0, min(10.0, score))
+                return max(1.0, min(10.0, score)), ""
             except ValueError:
                 pass
-        return 5.0  # Default middle score
+        return 5.0, f"Could not parse judge score, defaulting to 5.0 (raw: {text[:80]!r})"

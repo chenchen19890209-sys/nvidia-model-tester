@@ -32,20 +32,22 @@ class AvailabilityTester(BaseTester):
     def test_model(self, model: ModelInfo) -> TestResult:
         metrics = AvailabilityMetrics()
         errors: list[str] = []
+        warnings: list[str] = []
 
-        # 1. API health check
+        # 1. API connectivity check (via models endpoint)
         try:
             ok, elapsed = self.client.health_check()
             if ok:
                 metrics.record_success()
             else:
-                metrics.record_failure(f"Health check failed ({elapsed:.0f}ms)")
-                errors.append(f"API health check returned non-OK status")
+                metrics.record_failure(f"Connectivity check failed ({elapsed:.0f}ms)")
+                errors.append("API connectivity check returned non-OK status")
         except Exception as e:
             metrics.record_failure(str(e))
-            errors.append(f"Health check exception: {e}")
+            errors.append(f"Connectivity check error: {e}")
 
         # 2. Minimal chat completion
+        chat_404 = False
         try:
             resp = self.client.chat_completion(
                 model=model.id,
@@ -64,29 +66,34 @@ class AvailabilityTester(BaseTester):
                 metrics.record_failure("Empty response content")
                 errors.append("Model returned empty content")
         except Exception as e:
-            metrics.record_failure(str(e))
+            err_str = str(e)
+            if "404" in err_str:
+                chat_404 = True
+                warnings.append("Chat endpoint 404 — model may be completion-only or not yet deployed")
+            metrics.record_failure(err_str)
             errors.append(f"Chat completion error: {e}")
 
-        # 3. Second run to confirm consistency
-        try:
-            resp2 = self.client.chat_completion(
-                model=model.id,
-                messages=[{"role": "user", "content": "Say 'hello'"}],
-                max_tokens=10,
-                temperature=0.0,
-            )
-            content2 = (
-                resp2.get("choices", [{}])[0]
-                .get("message", {})
-                .get("content", "")
-            )
-            if content2.strip():
-                metrics.record_success()
-            else:
-                metrics.record_failure("Second attempt empty")
-        except Exception as e:
-            metrics.record_failure(str(e))
-            errors.append(f"Second attempt error: {e}")
+        # 3. Second run to confirm consistency (skip if chat endpoint 404'd)
+        if not chat_404:
+            try:
+                resp2 = self.client.chat_completion(
+                    model=model.id,
+                    messages=[{"role": "user", "content": "Say 'hello'"}],
+                    max_tokens=10,
+                    temperature=0.0,
+                )
+                content2 = (
+                    resp2.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                )
+                if content2.strip():
+                    metrics.record_success()
+                else:
+                    metrics.record_failure("Second attempt empty")
+            except Exception as e:
+                metrics.record_failure(str(e))
+                errors.append(f"Second attempt error: {e}")
 
         self._metrics[model.id] = metrics
 
@@ -101,8 +108,10 @@ class AvailabilityTester(BaseTester):
                 "total_attempts": metrics.total_attempts,
                 "success_rate": metrics.success_rate,
                 "summary": metrics.summary,
+                "chat_404": chat_404,
             },
             errors=errors,
+            warnings=warnings,
         )
 
     @property

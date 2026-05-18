@@ -1,12 +1,12 @@
-"""Test prompts organised by scenario.
+"""按场景组织的测试提示词。
 
-Each scenario has:
-- id:  unique key
-- label:  human-readable name
-- description:  what this scenario evaluates
-- messages:  list of chat messages (OpenAI format)
-- tags:  which model categories this applies to
-- weight:  importance weight for overall scoring (1-5)
+每个场景包含：
+- id: 唯一标识符
+- label: 人类可读的名称
+- description: 此场景评估的内容
+- messages: 聊天消息列表（OpenAI 格式）
+- tags: 适用的模型类别
+- weight: 总体评分的重要性权重（1-5）
 """
 
 from dataclasses import dataclass, field
@@ -15,6 +15,18 @@ from typing import Optional
 
 @dataclass
 class TestPrompt:
+    """测试提示词数据类。
+    
+    Attributes:
+        id: 唯一标识符
+        label: 人类可读的名称
+        description: 此场景评估的内容
+        messages: 聊天消息列表
+        tags: 适用的模型类别
+        weight: 重要性权重（1-5）
+        expected_traits: 期望的特性列表
+        reference_answer: 参考答案
+    """
     id: str
     label: str
     description: str

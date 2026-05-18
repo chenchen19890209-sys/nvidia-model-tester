@@ -1,8 +1,7 @@
-"""Model metadata registry — additional known model info not available from API.
+"""模型元数据注册表 — 提供 API 中不可用的额外模型信息。
 
-Some models have special parameters or endpoint requirements that aren't
-exposed through the standard /v1/models endpoint. This registry provides
-supplementary metadata for correct testing.
+某些模型具有特殊参数或端点要求，这些信息不会通过标准的 /v1/models 
+端点暴露。此注册表提供补充元数据以确保正确测试。
 """
 
 from dataclasses import dataclass, field
@@ -11,7 +10,19 @@ from typing import Optional
 
 @dataclass
 class ModelCapabilities:
-    """Known capabilities and quirks for a model."""
+    """模型的已知能力和特性。
+    
+    Attributes:
+        model_id: 模型 ID
+        supports_chat: 是否支持聊天模式
+        supports_streaming: 是否支持流式输出
+        supports_vision: 是否支持视觉输入
+        supports_tools: 是否支持工具调用
+        max_tokens_limit: 最大 token 限制
+        recommended_temperature: 推荐温度参数
+        requires_system_prompt: 是否需要系统提示
+        notes: 备注信息
+    """
 
     model_id: str
     supports_chat: bool = True
@@ -24,7 +35,7 @@ class ModelCapabilities:
     notes: str = ""
 
 
-# Registry of known model specifications
+# 已知模型规格注册表
 _MODEL_REGISTRY: dict[str, ModelCapabilities] = {
     "nvidia/nemotron-3-super-120b-a12b": ModelCapabilities(
         "nvidia/nemotron-3-super-120b-a12b",
@@ -57,7 +68,14 @@ _MODEL_REGISTRY: dict[str, ModelCapabilities] = {
 
 
 def get_capabilities(model_id: str) -> ModelCapabilities:
-    """Return known capabilities, falling back to defaults."""
+    """获取已知能力，如果未知则返回默认值。
+    
+    Args:
+        model_id: 模型 ID
+        
+    Returns:
+        模型能力对象
+    """
     return _MODEL_REGISTRY.get(
         model_id,
         ModelCapabilities(model_id=model_id),

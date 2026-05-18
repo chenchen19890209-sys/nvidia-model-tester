@@ -1,7 +1,15 @@
-"""OpenAI-compatible API client for NVIDIA NIM."""
+"""OpenAI 兼容的 NVIDIA NIM API 客户端。
 
+该模块提供了与 NVIDIA NIM API 交互的核心功能，包括：
+- 速率限制控制（避免触发 429 错误）
+- 自动重试机制（指数退避策略）
+- 健康检查、模型列表获取
+- 聊天完成和流式响应
+- 性能计时（TTFT、总延迟等）
+"""
+
+import json
 import time
-import asyncio
 from typing import Any, Optional
 from collections import deque
 from threading import Lock
@@ -12,136 +20,151 @@ from config import settings
 
 
 class RateLimiter:
-    """Rate limiter to avoid hitting API rate limits.
-    
-    NVIDIA NIM API limits: 40 requests per minute.
-    This limiter uses a sliding window algorithm to track requests.
+    """速率限制器，用于避免触发 API 速率限制。
+
+    NVIDIA NIM API 限制：每分钟 40 次请求。
+    使用线程安全的滑动窗口算法，acquire_slot() 原子化完成
+    检查 + 预留，消除 check-then-act 竞态条件。
     """
-    
+
     def __init__(self, max_requests: int = 38, window_seconds: float = 60.0):
-        """Initialize rate limiter.
-        
-        Args:
-            max_requests: Maximum requests allowed in the window (set to 38 to leave buffer)
-            window_seconds: Time window in seconds (60 seconds = 1 minute)
-        """
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self.requests: deque = deque()
+        self.requests: deque[float] = deque()
         self.lock = Lock()
-    
-    def _cleanup_old_requests(self, current_time: float):
-        """Remove requests outside the current window."""
-        cutoff = current_time - self.window_seconds
-        while self.requests and self.requests[0] < cutoff:
-            self.requests.popleft()
-    
-    def can_make_request(self) -> bool:
-        """Check if we can make a request without hitting the rate limit."""
-        with self.lock:
-            current_time = time.time()
-            self._cleanup_old_requests(current_time)
-            return len(self.requests) < self.max_requests
-    
-    def wait_for_slot(self, timeout: float = 120.0) -> bool:
-        """Wait until we can make a request.
-        
+
+    def acquire_slot(self, timeout: float = 120.0) -> bool:
+        """原子化检查并预留一个速率限制槽位。
+
+        同时完成过期清理、容量检查和槽位预留，
+        调用者之间不会出现 TOCTOU 竞态条件。
+
         Args:
-            timeout: Maximum time to wait in seconds
-            
+            timeout: 最大等待时间（秒）
+
         Returns:
-            True if slot available, False if timeout
+            True 如果成功预留槽位，False 如果超时
         """
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            if self.can_make_request():
-                return True
-            time.sleep(0.5)  # Wait half a second before checking again
-        return False
-    
-    def record_request(self):
-        """Record that a request was made."""
-        with self.lock:
-            self.requests.append(time.time())
+        start = time.monotonic()
+        while True:
+            with self.lock:
+                now = time.time()
+                cutoff = now - self.window_seconds
+                while self.requests and self.requests[0] < cutoff:
+                    self.requests.popleft()
+
+                if len(self.requests) < self.max_requests:
+                    self.requests.append(now)
+                    return True
+
+                oldest_expiry = self.requests[0] + self.window_seconds
+                wait = oldest_expiry - now
+
+            elapsed = time.monotonic() - start
+            if elapsed >= timeout:
+                return False
+            time.sleep(max(0.05, min(wait, timeout - elapsed, 0.5)))
 
 
 class NIMClient:
-    """Thin, stateless HTTP client for the NVIDIA NIM API."""
+    """NVIDIA NIM API 的轻量级、无状态 HTTP 客户端。
+    
+    提供所有必要的 API 调用方法，内置速率限制和重试机制。
+    """
 
-    # Shared rate limiter across all client instances
+    # 所有客户端实例共享的速率限制器
     _rate_limiter = RateLimiter(max_requests=38, window_seconds=60.0)
 
     def __init__(self) -> None:
+        """初始化 NIM 客户端。
+        
+        从全局配置中读取基础 URL、超时时间和重试设置。
+        """
         self.base_url = settings.NVIDIA_API_BASE.rstrip("/")
         self.timeout = settings.REQUEST_TIMEOUT
         self.max_retries = settings.MAX_RETRIES
         self.retry_delay = settings.RETRY_DELAY
 
     def _headers(self) -> dict[str, str]:
+        """获取 HTTP 请求头。
+        
+        Returns:
+            包含授权令牌和内容类型的字典
+        """
         return settings.headers
 
     def _make_request(self, func, *args, **kwargs):
-        """Make an API request with rate limiting and retry logic.
-        
+        """发起 API 请求，包含速率限制和重试逻辑。
+
+        仅在首次尝试时获取速率限制槽位（原子操作）。
+        重试时不重复获取槽位，避免失败请求浪费配额。
+
         Args:
-            func: The HTTP request function to call
-            *args, **kwargs: Arguments to pass to the function
-            
+            func: 要调用的 HTTP 请求函数
+            *args, **kwargs: 传递给函数的参数
+
         Returns:
-            Response from the API
-            
+            API 响应结果
+
         Raises:
-            Exception: If all retries fail
+            Exception: 如果所有重试都失败
         """
         last_error = None
-        
+
         for attempt in range(self.max_retries + 1):
+            if attempt == 0:
+                if not self._rate_limiter.acquire_slot(timeout=120.0):
+                    raise Exception("速率限制超时 - 无法获取槽位")
+            elif attempt > 0:
+                # 指数退避等待
+                wait_time = self.retry_delay * (2 ** (attempt - 1))
+                time.sleep(wait_time)
+
             try:
-                # Wait for rate limit slot
-                if not self._rate_limiter.wait_for_slot(timeout=120.0):
-                    raise Exception("Rate limit timeout - could not get a slot")
-                
-                # Record this request
-                self._rate_limiter.record_request()
-                
-                # Make the actual request
                 return func(*args, **kwargs)
-                
+
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
-                    # Rate limited - wait and retry
-                    wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
-                    print(f"    ⚠️  Rate limited (429), retrying in {wait_time:.1f}s (attempt {attempt + 1}/{self.max_retries})")
-                    time.sleep(wait_time)
+                    print(
+                        f"    ⚠️  速率限制 (429)，"
+                        f"尝试 {attempt + 1}/{self.max_retries + 1}"
+                    )
                     last_error = e
                 else:
-                    # Other HTTP errors - don't retry
                     raise
             except Exception as e:
                 last_error = e
                 if attempt < self.max_retries:
-                    wait_time = self.retry_delay * (2 ** attempt)
-                    print(f"    ⚠️  Request failed, retrying in {wait_time:.1f}s: {str(e)[:50]}")
-                    time.sleep(wait_time)
+                    print(
+                        f"    ⚠️  请求失败，重试 (尝试 {attempt + 1}/{self.max_retries + 1}): "
+                        f"{str(e)[:80]}"
+                    )
                 else:
                     raise
-        
+
         raise last_error
 
-    # ── Health ──────────────────────────────────────────────────
+    # ── 健康检查 ────────────────────────────────────────────────
 
     def health_check(self) -> tuple[bool, float]:
-        """Check if the API is reachable. Returns (ok, elapsed_ms)."""
+        """检查 API 是否可达（通过 models 端点做连通性探测）。
+
+        NVIDIA NIM 云端 API 没有 /health/ready 端点，
+        改用 GET /models 作为轻量级连通性检查。
+
+        Returns:
+            元组 (是否成功, 耗时毫秒)
+        """
         start = time.perf_counter()
         try:
             def _check():
                 with httpx.Client(timeout=self.timeout) as client:
                     resp = client.get(
-                        f"{self.base_url}/health/ready",
+                        f"{self.base_url}/models",
                         headers=self._headers(),
                     )
                 return resp
-            
+
             resp = self._make_request(_check)
             elapsed = (time.perf_counter() - start) * 1000
             return resp.is_success, elapsed
@@ -149,10 +172,14 @@ class NIMClient:
             elapsed = (time.perf_counter() - start) * 1000
             return False, elapsed
 
-    # ── Models list ─────────────────────────────────────────────
+    # ── 模型列表 ────────────────────────────────────────────────
 
     def list_models(self) -> list[dict[str, Any]]:
-        """GET /v1/models — returns the raw model list."""
+        """GET /v1/models — 获取原始模型列表。
+        
+        Returns:
+            模型信息字典列表
+        """
         def _get_models():
             with httpx.Client(timeout=self.timeout) as client:
                 resp = client.get(
@@ -163,10 +190,10 @@ class NIMClient:
             return resp.json()
         
         data = self._make_request(_get_models)
-        # The response may wrap models under a "data" key (OpenAI-style)
+        # 响应可能将模型包装在 "data" 键下（OpenAI 风格）
         return data.get("data", data)
 
-    # ── Chat completion ─────────────────────────────────────────
+    # ── 聊天完成 ────────────────────────────────────────────────
 
     def chat_completion(
         self,
@@ -177,9 +204,21 @@ class NIMClient:
         top_p: float = 0.95,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """POST /v1/chat/completions — returns the full response JSON.
-
-        Raises httpx.HTTPStatusError on non-2xx.
+        """POST /v1/chat/completions — 返回完整的响应 JSON。
+        
+        Args:
+            model: 模型 ID
+            messages: 消息列表，每个消息包含 role 和 content
+            max_tokens: 最大生成 token 数
+            temperature: 温度参数，控制随机性
+            top_p: 核采样参数
+            extra_body: 额外的请求体参数
+            
+        Returns:
+            API 响应字典
+            
+        Raises:
+            httpx.HTTPStatusError: 非 2xx 状态码时抛出
         """
         body: dict[str, Any] = {
             "model": model,
@@ -203,7 +242,7 @@ class NIMClient:
         
         return self._make_request(_chat)  # type: ignore[no-any-return]
 
-    # ── Timed chat completion ───────────────────────────────────
+    # ── 计时聊天完成 ───────────────────────────────────────────
 
     def timed_chat(
         self,
@@ -214,7 +253,22 @@ class NIMClient:
         top_p: float = 0.95,
         extra_body: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """Like chat_completion but also measures TTFT and total latency."""
+        """类似 chat_completion，但同时测量 TTFT 和总延迟。
+        
+        Args:
+            model: 模型 ID
+            messages: 消息列表
+            max_tokens: 最大生成 token 数
+            temperature: 温度参数
+            top_p: 核采样参数
+            extra_body: 额外的请求体参数
+            
+        Returns:
+            包含内容、用量和计时信息的字典：
+            - content: 生成的文本内容
+            - usage: token 用量统计
+            - timing_ms: 计时信息（TTFT、总时间、首 token 后时间）
+        """
         
         def _timed_chat():
             start = time.perf_counter()
@@ -249,18 +303,19 @@ class NIMClient:
                             chunk_str = line[6:]
                             if chunk_str.strip() == "[DONE]":
                                 break
-                            import json
 
                             chunk = json.loads(chunk_str)
                             if first_chunk_time is None:
                                 first_chunk_time = time.perf_counter()
 
-                            delta = chunk.get("choices", [{}])[0].get("delta", {})
-                            content = delta.get("content", "")
+                            choices = chunk.get("choices") or []
+                            first_choice = choices[0] if choices else None
+                            delta = first_choice.get("delta", {}) if isinstance(first_choice, dict) else {}
+                            content = delta.get("content", "") if isinstance(delta, dict) else ""
                             if content:
                                 collected_content.append(content)
 
-                            # Usage may appear in the last chunk
+                            # 用量信息可能出现在最后一个 chunk 中
                             if "usage" in chunk:
                                 usage = chunk["usage"]
 
@@ -283,7 +338,7 @@ class NIMClient:
         
         return self._make_request(_timed_chat)
 
-    # ── Simple completion (non-chat) ────────────────────────────
+    # ── 简单完成（非聊天） ──────────────────────────────────────
 
     def completion(
         self,
@@ -291,7 +346,16 @@ class NIMClient:
         prompt: str,
         max_tokens: int = 512,
     ) -> dict[str, Any]:
-        """POST /v1/completions — for non-chat models."""
+        """POST /v1/completions — 用于非聊天模型。
+        
+        Args:
+            model: 模型 ID
+            prompt: 提示文本
+            max_tokens: 最大生成 token 数
+            
+        Returns:
+            API 响应字典
+        """
         body = {
             "model": model,
             "prompt": prompt,

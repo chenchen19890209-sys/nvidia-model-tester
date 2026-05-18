@@ -9,6 +9,9 @@ NVIDIA Model Tester is an automated evaluation framework for NVIDIA NIM API mode
 ## Commands
 
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
 # Quick sample test (3 models per category)
 python main.py --scope sample
 
@@ -38,7 +41,7 @@ Results accumulate in a `dict[str, ModelReportData]` keyed by model ID. `ModelRe
 ### Key modules
 
 - **`config.py`** — Singleton `Settings` (Pydantic BaseSettings). Reads from `.env` directly (no prefix — `NV_TEST_` prefix is commented out). Field names are case-sensitive. Config values are mutable at runtime (e.g., `settings.CONCURRENCY = args.concurrency`).
-- **`utils/api_client.py`** — `NIMClient` wraps the OpenAI-compatible NVIDIA NIM API. Key methods: `list_models()`, `chat_completion()`, `timed_chat()` (streaming with TTFT/total latency measurement). All methods create a new `httpx.Client` per call.
+- **`utils/api_client.py`** — `NIMClient` wraps the OpenAI-compatible NVIDIA NIM API. Key methods: `list_models()`, `chat_completion()`, `timed_chat()` (streaming with TTFT/total latency measurement). All methods create a new `httpx.Client` per call. A global `RateLimiter` (sliding window, 40 req/min) is shared across all client instances to prevent 429 errors. Failed requests use exponential backoff retry (`MAX_RETRIES`, `RETRY_DELAY`).
 - **`models/scanner.py`** — `discover_models()` fetches from API and classifies using `_classify()` which does keyword matching against `_CATEGORY_RULES`. The first matching rule wins; unknown models default to `"llm"`.
 - **`models/registry.py`** — Static `_MODEL_REGISTRY` dict with known model capabilities (max tokens, tool support, recommended temperature). `get_capabilities()` returns defaults for unknown models.
 - **`tests/base.py`** — `BaseTester(ABC)` with abstract `name()`, `description()`, `test_model()`, and optional `skip_reason()`. `TestResult` is a dataclass with `passed`, `score` (0-1), `details`, `errors`, `warnings`.
@@ -66,4 +69,10 @@ Each tester's `skip_reason()` gates which models run:
 
 ### Configuration priority
 
-Command-line args > runtime mutation of `settings` fields > `.env` file > `Field(default=...)`. The `.env` file uses raw field names like `NVIDIA_API_KEY=...` (no `NV_TEST_` prefix).
+Command-line args > runtime mutation of `settings` fields > `.env` file > `Field(default=...)`. The `.env` file uses raw field names like `NVIDIA_API_KEY=...` (no `NV_TEST_` prefix — the prefix in config.py is commented out).
+
+`REPORT_FORMAT` defaults to `BOTH`, producing both HTML and JSON output per run.
+
+### Dependencies
+
+Only `httpx`, `pydantic`, and `pydantic-settings` are imported at runtime. The remaining packages in `requirements.txt` (`rich`, `jinja2`, `matplotlib`, `numpy`, `weasyprint`) are listed but not currently used by any source file. A minimal install needs only the first three.

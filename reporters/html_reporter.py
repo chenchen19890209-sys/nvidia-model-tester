@@ -282,23 +282,48 @@ class HTMLReporter:
             "<!DOCTYPE html>\n<html lang='zh-CN'>\n<head>\n"
             "<meta charset='UTF-8'>\n"
             "<meta name='viewport' content='width=device-width, initial-scale=1.0'>\n"
-            f"<title>{settings.REPORT_TITLE}</title>\n"
+            f"<title data-zh='{settings.REPORT_TITLE}' data-en='NVIDIA Model Test Report'>{settings.REPORT_TITLE}</title>\n"
             f"<style>{_CSS}</style>\n"
             "</head>\n<body>\n<div class='container'>\n"
+            # 添加语言切换按钮
+            "<div style='position:fixed;top:20px;right:20px;z-index:1000;'>"
+            "<button id='langToggle' onclick='toggleLanguage()' "
+            "style='background:#76b900;color:#000;border:none;padding:8px 16px;"
+            "border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;'>"
+            "English / 中文"
+            "</button></div>\n"
             f"<div class='header'>"
             f"<h1>\U0001f3c6 {settings.REPORT_TITLE}</h1>"
             f"<div class='subtitle'>"
-            f"Generated: {timestamp} &nbsp;|&nbsp; "
-            f"<span class='badge'>{len(models)} Models Tested</span>"
+            f"<span data-zh='生成时间' data-en='Generated'>生成时间</span>: {timestamp} &nbsp;|&nbsp; "
+            f"<span class='badge'><span data-zh='测试模型数' data-en='Models Tested'>测试模型数</span>: {len(models)}</span>"
             f" &nbsp;|&nbsp; NVIDIA NIM API"
             f"</div></div>\n"
             f"{sections}\n"
             f"<div class='footer'>"
             f"<p>NVIDIA Model Tester &mdash; Built with NVIDIA NIM API</p>"
-            f"<p style='margin-top:4px'>Report generated at {timestamp}</p>"
+            f"<p style='margin-top:4px'><span data-zh='报告生成时间' data-en='Report generated at'>报告生成时间</span> {timestamp}</p>"
             f"</div>\n"
             f"</div>\n"
-            f"<script>{js_filled}</script>\n"
+            f"<script>{js_filled}\n"
+            # 添加语言切换 JavaScript
+            "\n// Language toggle functionality\n"
+            "let currentLang = 'zh';\n"
+            "function toggleLanguage() {\n"
+            "  currentLang = currentLang === 'zh' ? 'en' : 'zh';\n"
+            "  document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';\n"
+            "  const elements = document.querySelectorAll('[data-zh][data-en]');\n"
+            "  elements.forEach(el => {\n"
+            "    const text = currentLang === 'zh' ? el.getAttribute('data-zh') : el.getAttribute('data-en');\n"
+            "    if (el.tagName === 'TITLE') {\n"
+            "      document.title = text;\n"
+            "    } else {\n"
+            "      el.textContent = text;\n"
+            "    }\n"
+            "  });\n"
+            "  document.getElementById('langToggle').textContent = currentLang === 'zh' ? 'English / 中文' : '中文 / English';\n"
+            "}\n"
+            "</script>\n"
             "</body>\n</html>"
         )
 
@@ -321,16 +346,16 @@ class HTMLReporter:
         return (
             "<div class='stats'>"
             f"<div class='stat'><div class='value'>{total}</div>"
-            "<div class='label'>Models Tested</div></div>"
+            "<div class='label'><span data-zh='测试模型数' data-en='Models Tested'>测试模型数</span></div></div>"
             f"<div class='stat'><div class='value'>{categories}</div>"
-            "<div class='label'>Categories</div></div>"
+            "<div class='label'><span data-zh='类别数' data-en='Categories'>类别数</span></div></div>"
             f"<div class='stat'><div class='value'>{passed_all}</div>"
-            "<div class='label'>All Tests Passed</div></div>"
+            "<div class='label'><span data-zh='全部通过' data-en='All Tests Passed'>全部通过</span></div></div>"
             f"<div class='stat'><div class='value'>{avg_score:.2f}</div>"
-            "<div class='label'>Average Score</div></div>"
+            "<div class='label'><span data-zh='平均分数' data-en='Average Score'>平均分数</span></div></div>"
             f"<div class='stat'><div class='value' style='font-size:16px'>"
             f"{best.model.id if best else '&mdash;'}</div>"
-            "<div class='label'>Top Model</div></div>"
+            "<div class='label'><span data-zh='最佳模型' data-en='Top Model'>最佳模型</span></div></div>"
             "</div>"
         )
 
@@ -338,24 +363,38 @@ class HTMLReporter:
         rows = ""
         for i, m in enumerate(models[:30]):
             score = m.overall_score
-            css = "green" if score >= 0.7 else ("orange" if score >= 0.4 else "red")
-            fill_w = f"{score * 100:.1f}%"
+            was_tested = len(m.results) > 0
+            if was_tested:
+                css = "green" if score >= 0.7 else ("orange" if score >= 0.4 else "red")
+                fill_w = f"{score * 100:.1f}%"
 
             result_tags = ""
             for tname, tr in m.results.items():
                 cls = "green" if tr.passed else "red"
                 result_tags += f"<span class='tag {cls}'>{tname}</span> "
 
+            if was_tested:
+                score_html = (
+                    f"<div class='score-bar'><div class='score-fill {css}' "
+                    f"style='width:{fill_w}'></div></div>"
+                    f"<div style='font-size:12px;margin-top:2px'>{score:.1%}</div>"
+                )
+            else:
+                score_html = (
+                    "<div style='font-size:12px;color:#8892a4;margin-top:2px'>"
+                    "<span data-zh='未测试' data-en='Not tested'>未测试</span></div>"
+                )
+                result_tags = (
+                    "<span class='tag' style='background:rgba(136,146,164,0.1);color:#8892a4'>"
+                    "<span data-zh='非对话模型' data-en='Non-chat'>非对话模型</span></span>"
+                )
+
             rows += (
                 "<tr>"
                 f"<td class='rank-num'>{i + 1}</td>"
                 f"<td><span class='model-name'>{m.model.id}</span><br>"
                 f"<span class='model-cat'>{m.model.category}</span></td>"
-                f"<td>"
-                f"<div class='score-bar'><div class='score-fill {css}' "
-                f"style='width:{fill_w}'></div></div>"
-                f"<div style='font-size:12px;margin-top:2px'>{score:.1%}</div>"
-                f"</td>"
+                f"<td>{score_html}</td>"
                 f"<td>{result_tags}</td>"
                 "</tr>"
             )
@@ -363,11 +402,11 @@ class HTMLReporter:
         n = min(30, len(models))
         return (
             "<div class='card'>"
-            f"<h2>\U0001f4ca Overall Rankings (Top {n})</h2>"
+            f"<h2><span data-zh='\U0001f4ca 综合排名 (前 {n} 名)' data-en='\U0001f4ca Overall Rankings (Top {n})'>\U0001f4ca 综合排名 (前 {n} 名)</span></h2>"
             "<div class='chart-container'><canvas id='overallChart'>"
             "</canvas></div>"
             "<table><thead><tr>"
-            "<th>#</th><th>Model</th><th>Score</th><th>Tests</th>"
+            "<th>#</th><th><span data-zh='模型' data-en='Model'>模型</span></th><th><span data-zh='分数' data-en='Score'>分数</span></th><th><span data-zh='测试' data-en='Tests'>测试</span></th>"
             "</tr></thead>"
             f"<tbody>{rows}</tbody></table></div>"
         )
@@ -375,6 +414,12 @@ class HTMLReporter:
     def _section_dimensions(self, models: list[ModelReportData]) -> str:
         all_dims = ["availability", "performance", "capability", "quality"]
         dim_labels = {
+            "availability": "可用性",
+            "performance": "性能",
+            "capability": "能力",
+            "quality": "质量",
+        }
+        dim_labels_en = {
             "availability": "Availability",
             "performance": "Performance",
             "capability": "Capability",
@@ -411,13 +456,13 @@ class HTMLReporter:
             cols += (
                 "<div style='background:#131926;border:1px solid #1e2a3a;"
                 "border-radius:8px;padding:12px'>"
-                f"<h3 style='margin-bottom:8px'>{dim_labels.get(dim, dim)}</h3>"
+                f"<h3 style='margin-bottom:8px'><span data-zh='{dim_labels.get(dim, dim)}' data-en='{dim_labels_en.get(dim, dim)}'>{dim_labels.get(dim, dim)}</span></h3>"
                 f"<table>{rows}</table></div>"
             )
 
         return (
             "<div class='card'>"
-            "<h2>\U0001f3af Per-Dimension Analysis</h2>"
+            "<h2><span data-zh='\U0001f3af 各维度分析' data-en='\U0001f3af Per-Dimension Analysis'>\U0001f3af 各维度分析</span></h2>"
             "<div style='display:grid;grid-template-columns:"
             "repeat(auto-fit,minmax(280px,1fr));gap:16px'>"
             f"{cols}</div></div>"
@@ -473,10 +518,12 @@ class HTMLReporter:
 
         return (
             "<div class='card'>"
-            "<h2>\U0001f9e9 Scenario Suitability Matrix</h2>"
+            "<h2><span data-zh='\U0001f9e9 场景适用性矩阵' data-en='\U0001f9e9 Scenario Suitability Matrix'>\U0001f9e9 场景适用性矩阵</span></h2>"
             "<p style='font-size:12px;color:#8892a4;margin-bottom:12px'>"
-            "Higher scores (0.0&ndash;1.0) indicate better suitability. "
-            "Shows top 20 models.</p>"
+            "<span data-zh='分数越高（0.0-1.0）表示适用性越好。显示前 20 个模型。' "
+            "data-en='Higher scores (0.0&ndash;1.0) indicate better suitability. Shows top 20 models.'>"
+            "分数越高（0.0-1.0）表示适用性越好。显示前 20 个模型。"
+            "</span></p>"
             "<div style='overflow-x:auto'>"
             "<table><thead>" + header + "</thead>"
             "<tbody>" + body_rows + "</tbody></table></div></div>"
@@ -514,13 +561,18 @@ class HTMLReporter:
 
         return (
             "<div class='card'>"
-            "<h2>\U0001f4b0 Cost &amp; Token Consumption</h2>"
+            "<h2><span data-zh='\U0001f4b0 成本和 Token 消耗' data-en='\U0001f4b0 Cost &amp; Token Consumption'>\U0001f4b0 成本和 Token 消耗</span></h2>"
             "<p style='font-size:12px;color:#8892a4;margin-bottom:12px'>"
-            "Based on capability test prompts. Costs are rough estimates "
-            "using default rates.</p>"
+            "<span data-zh='基于能力测试提示词。成本是使用默认费率的粗略估算。' "
+            "data-en='Based on capability test prompts. Costs are rough estimates using default rates.'>"
+            "基于能力测试提示词。成本是使用默认费率的粗略估算。"
+            "</span></p>"
             "<table><thead><tr>"
-            "<th>Model</th><th>Total Tokens</th><th>Prompt</th>"
-            "<th>Completion</th><th>Est. Cost</th>"
+            "<th><span data-zh='模型' data-en='Model'>模型</span></th>"
+            "<th><span data-zh='总 Token' data-en='Total Tokens'>总 Token</span></th>"
+            "<th><span data-zh='输入' data-en='Prompt'>输入</span></th>"
+            "<th><span data-zh='输出' data-en='Completion'>输出</span></th>"
+            "<th><span data-zh='预估成本' data-en='Est. Cost'>预估成本</span></th>"
             "</tr></thead>"
             f"<tbody>{rows}</tbody></table></div>"
         )
@@ -531,17 +583,28 @@ class HTMLReporter:
             collapsed = " style='display:none'" if len(models) > 10 else ""
 
             results_html = ""
-            for tname, tr in m.results.items():
-                cls = "green" if tr.passed else "red"
-                detail_rows = self._detail_rows(tr.details)
-                results_html += (
-                    "<div style='margin-bottom:8px;padding:8px;"
-                    "background:rgba(255,255,255,0.02);border-radius:6px'>"
-                    "<div style='display:flex;justify-content:space-between'>"
-                    f"<strong style='font-size:13px'>{tname}</strong>"
-                    f"<span class='tag {cls}'>"
-                    f"{'PASS' if tr.passed else 'FAIL'} ({tr.score:.2f})"
-                    f"</span></div>{detail_rows}</div>"
+            if m.results:
+                for tname, tr in m.results.items():
+                    cls = "green" if tr.passed else "red"
+                    status_zh = "通过" if tr.passed else "失败"
+                    status_en = "PASS" if tr.passed else "FAIL"
+                    detail_rows = self._detail_rows(tr.details)
+                    results_html += (
+                        "<div style='margin-bottom:8px;padding:8px;"
+                        "background:rgba(255,255,255,0.02);border-radius:6px'>"
+                        "<div style='display:flex;justify-content:space-between'>"
+                        f"<strong style='font-size:13px'>{tname}</strong>"
+                        f"<span class='tag {cls}'>"
+                        f"<span data-zh='{status_zh}' data-en='{status_en}'>"
+                        f"{status_zh} ({tr.score:.2f})"
+                        f"</span></span></div>{detail_rows}</div>"
+                    )
+            else:
+                results_html = (
+                    "<div style='padding:12px;text-align:center;color:#8892a4'>"
+                    "<span data-zh='此模型未进行深度测试（非对话模型或测试被跳过）' "
+                    "data-en='No deep tests run (non-chat model or tests skipped)'>"
+                    "此模型未进行深度测试（非对话模型或测试被跳过）</span></div>"
                 )
 
             errors_html = ""
@@ -558,15 +621,19 @@ class HTMLReporter:
                 f"n.style.display=n.style.display==='none'?'':'none'\">"
                 f"\U0001f4cb {short}</h4>"
                 f"<div class='sub-detail'>"
-                f"ID: {m.model.id} &nbsp;|&nbsp; Category: {m.model.category}"
-                f" &nbsp;|&nbsp; Overall: {m.overall_score:.2f}</div>"
+                f"ID: {m.model.id} &nbsp;|&nbsp; "
+                f"<span data-zh='类别' data-en='Category'>类别</span>: "
+                f"{m.model.category}"
+                f" &nbsp;|&nbsp; "
+                f"<span data-zh='总分' data-en='Overall'>总分</span>: "
+                f"{m.overall_score:.2f}</div>"
                 f"<div class='card-body'{collapsed}>"
                 f"{results_html}{errors_html}</div></div>"
             )
 
         return (
             "<div class='card'>"
-            "<h2>\U0001f4cb Detailed Model Cards</h2>"
+            "<h2><span data-zh='\U0001f4cb 详细模型卡片' data-en='\U0001f4cb Detailed Model Cards'>\U0001f4cb 详细模型卡片</span></h2>"
             f"{cards}</div>"
         )
 
