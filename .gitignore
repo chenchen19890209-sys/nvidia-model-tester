@@ -7,6 +7,11 @@ __pycache__/
 *$py.class
 *.so
 
+# Node.js / npm
+node_modules/
+package-lock.json
+package.json
+
 # Output / reports
 output/
 

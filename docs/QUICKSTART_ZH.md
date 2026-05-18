@@ -1,5 +1,9 @@
 # 快速开始指南
 
+**Language / 语言**: [🇨🇳 中文](QUICKSTART_ZH.md) | [🇺🇸 English](QUICKSTART.md)
+
+---
+
 ## ⚡ 5分钟上手
 
 ### 1️⃣ 安装依赖
@@ -139,7 +143,7 @@ A: 可以！编辑 `scenarios/prompts.py` 添加你自己的测试场景。
 
 ## 🚀 下一步
 
-- 📖 阅读完整的 [README.md](README.md) 了解详细功能
+- 📖 阅读完整的 [README_ZH.md](README_ZH.md) 了解详细功能
 - 🔧 查看 `config.py` 了解所有配置选项
 - 📝 自定义测试场景：编辑 `scenarios/prompts.py`
 

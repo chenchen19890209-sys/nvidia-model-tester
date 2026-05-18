@@ -1,5 +1,9 @@
 # NVIDIA Model Tester - 项目总结
 
+**Language / 语言**: [🇨🇳 中文](PROJECT_SUMMARY_ZH.md) | [🇺🇸 English](PROJECT_SUMMARY.md)
+
+---
+
 ## 📋 项目清单
 
 ### ✅ 已完成的工作
@@ -10,11 +14,11 @@
    - 识别了关键技术栈和设计模式
 
 2. **文档生成** ✓
-   - [README.md](README.md) - 完整的项目说明文档（653行）
-   - [QUICKSTART.md](QUICKSTART.md) - 快速开始指南（149行）
-   - [ARCHITECTURE.md](ARCHITECTURE.md) - 技术架构文档（611行）
-   - [CONTRIBUTING.md](CONTRIBUTING.md) - 贡献指南（586行）
-   - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) - 本文件
+   - [README_ZH.md](README_ZH.md) - 完整的项目说明文档（653行）
+   - [QUICKSTART_ZH.md](QUICKSTART_ZH.md) - 快速开始指南（149行）
+   - [ARCHITECTURE_ZH.md](ARCHITECTURE_ZH.md) - 技术架构文档（611行）
+   - [CONTRIBUTING_ZH.md](CONTRIBUTING_ZH.md) - 贡献指南（586行）
+   - [PROJECT_SUMMARY_ZH.md](PROJECT_SUMMARY_ZH.md) - 本文件
 
 ---
 
@@ -376,10 +380,10 @@ def test_langchain_model():
 
 ### 官方资源
 
-- 📖 完整文档：[README.md](README.md)
-- 🚀 快速开始：[QUICKSTART.md](QUICKSTART.md)
-- 🏗️ 技术架构：[ARCHITECTURE.md](ARCHITECTURE.md)
-- 🤝 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 📖 完整文档：[README_ZH.md](README_ZH.md)
+- 🚀 快速开始：[QUICKSTART_ZH.md](QUICKSTART_ZH.md)
+- 🏗️ 技术架构：[ARCHITECTURE_ZH.md](ARCHITECTURE_ZH.md)
+- 🤝 贡献指南：[CONTRIBUTING_ZH.md](CONTRIBUTING_ZH.md)
 
 ### 外部链接
 

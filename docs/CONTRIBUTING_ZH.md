@@ -1,5 +1,9 @@
 # 贡献指南
 
+**Language / 语言**: [🇨🇳 中文](CONTRIBUTING_ZH.md) | [🇺🇸 English](CONTRIBUTING.md)
+
+---
+
 欢迎为 NVIDIA Model Tester 项目做出贡献！本指南将帮助你快速上手开发流程。
 
 ---
@@ -531,9 +535,9 @@ def get_model_category(model_id: str) -> str:
 ## 📚 学习资源
 
 ### 项目相关
-- [README.md](README.md) - 完整的项目文档
-- [ARCHITECTURE.md](ARCHITECTURE.md) - 技术架构详解
-- [QUICKSTART.md](QUICKSTART.md) - 快速开始指南
+- [README_ZH.md](README_ZH.md) - 完整的项目文档
+- [ARCHITECTURE_ZH.md](ARCHITECTURE_ZH.md) - 技术架构详解
+- [QUICKSTART_ZH.md](QUICKSTART_ZH.md) - 快速开始指南
 
 ### 外部资源
 - [PEP 8 风格指南](https://peps.python.org/pep-0008/)

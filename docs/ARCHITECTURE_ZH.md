@@ -1,5 +1,9 @@
 # 技术架构文档
 
+**Language / 语言**: [🇨🇳 中文](ARCHITECTURE_ZH.md) | [🇺🇸 English](ARCHITECTURE.md)
+
+---
+
 ## 🏛️ 系统架构概览
 
 ```
