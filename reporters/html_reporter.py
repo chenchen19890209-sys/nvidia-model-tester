@@ -237,6 +237,49 @@ window.addEventListener('resize', drawBars);
 class HTMLReporter:
     """Generate a complete, styled HTML report with rankings and charts."""
 
+    _LABEL_ZH: dict[str, str] = {
+        "success_count": "成功次数",
+        "failure_count": "失败次数",
+        "total_attempts": "总尝试",
+        "success_rate": "成功率",
+        "summary": "摘要",
+        "chat_404": "Chat 404",
+        "avg_ttft_ms": "平均TTFT(ms)",
+        "min_ttft_ms": "最小TTFT(ms)",
+        "p95_ttft_ms": "P95 TTFT(ms)",
+        "avg_total_ms": "平均总延迟(ms)",
+        "avg_tokens_per_second": "平均吞吐(token/s)",
+        "runs": "运行次数",
+        "score_components": "评分组成",
+        "scenarios": "场景得分",
+        "scenario_count": "场景数",
+        "total_prompt_tokens": "输入Token",
+        "total_completion_tokens": "输出Token",
+        "total_tokens": "总Token",
+        "average_quality_score": "平均质量分",
+        "per_prompt_scores": "各提示得分",
+        "judge_model": "评判模型",
+        "ttft": "首Token时间",
+        "total_latency": "总延迟",
+        "throughput": "吞吐量",
+        "quality_scores": "质量分",
+        "errors": "错误",
+        "warnings": "警告",
+        # Scenario IDs
+        "general_chat": "通用对话与指令",
+        "code_generation": "代码生成",
+        "code_debugging": "代码调试",
+        "math_reasoning": "数学推理",
+        "logical_reasoning": "逻辑推理",
+        "creative_writing": "创意写作",
+        "summarization": "文本摘要",
+        "translation": "翻译 (英→中)",
+        "agentic_reasoning": "智能体规划",
+        "long_context": "长上下文理解",
+        "multimodal_understanding": "视觉描述 (文本代理)",
+        "instruction_following": "指令遵循",
+    }
+
     def __init__(self, output_dir: str = "") -> None:
         self.output_dir = output_dir or settings.OUTPUT_DIR
 
@@ -293,7 +336,7 @@ class HTMLReporter:
             "English / 中文"
             "</button></div>\n"
             f"<div class='header'>"
-            f"<h1>\U0001f3c6 {settings.REPORT_TITLE}</h1>"
+            f"<h1>\U0001f3c6 <span data-zh='{settings.REPORT_TITLE}' data-en='NVIDIA Model Test Report'>{settings.REPORT_TITLE}</span></h1>"
             f"<div class='subtitle'>"
             f"<span data-zh='生成时间' data-en='Generated'>生成时间</span>: {timestamp} &nbsp;|&nbsp; "
             f"<span class='badge'><span data-zh='测试模型数' data-en='Models Tested'>测试模型数</span>: {len(models)}</span>"
@@ -488,11 +531,22 @@ class HTMLReporter:
         from scenarios.prompts import PROMPTS_BY_ID
 
         # Build table header
-        header = "<tr><th style='width:250px'>Model</th><th style='width:80px'>Type</th>"
+        header = (
+            "<tr>"
+            "<th style='width:250px'><span data-zh='模型' data-en='Model'>Model</span></th>"
+            "<th style='width:80px'><span data-zh='类型' data-en='Type'>Type</span></th>"
+        )
         for sid in sorted_scenarios:
             prompt = PROMPTS_BY_ID.get(sid)
-            label = prompt.label if prompt else sid[:24]
-            header += f"<th style='min-width:80px;text-align:center' title='{label}'>{label[:14]}</th>"
+            label_en = prompt.label if prompt else sid[:24]
+            label_zh = (prompt.label_zh if prompt and prompt.label_zh
+                        else label_en)
+            header += (
+                f"<th style='min-width:80px;text-align:center' "
+                f"title='{label_en}'>"
+                f"<span data-zh='{label_zh}' data-en='{label_en}'>"
+                f"{label_en[:14]}</span></th>"
+            )
         header += "</tr>"
 
         # Build table body
@@ -637,32 +691,37 @@ class HTMLReporter:
             f"{cards}</div>"
         )
 
-    @staticmethod
-    def _detail_rows(details: dict[str, Any]) -> str:
+    def _detail_rows(self, details: dict[str, Any]) -> str:
         items = ""
         for k, v in details.items():
+            label_zh = self._LABEL_ZH.get(k, k)
             if isinstance(v, dict):
-                # Show nested dict items compactly (scores, etc.)
                 nested_parts = []
                 for nk, nv in list(v.items())[:5]:
+                    nlabel_zh = self._LABEL_ZH.get(nk, nk)
                     if isinstance(nv, float):
                         nested_parts.append(
-                            f"<span style='color:#8892a4'>{nk}:</span> "
+                            f"<span style='color:#8892a4' "
+                            f"data-zh='{nlabel_zh}' data-en='{nk}'>{nlabel_zh}:</span> "
                             f"<span style='color:#e2e8f0'>{nv:.2f}</span>"
                         )
                     else:
                         nested_parts.append(
-                            f"<span style='color:#8892a4'>{nk}:</span> "
+                            f"<span style='color:#8892a4' "
+                            f"data-zh='{nlabel_zh}' data-en='{nk}'>{nlabel_zh}:</span> "
                             f"<span style='color:#e2e8f0'>{nv}</span>"
                         )
                 if len(v) > 5:
                     nested_parts.append(
-                        f"<span style='color:#8892a4'>... +{len(v) - 5} more</span>"
+                        "<span style='color:#8892a4' "
+                        f"data-zh='... +{len(v) - 5} 更多' "
+                        f"data-en='... +{len(v) - 5} more'>"
+                        f"... +{len(v) - 5} more</span>"
                     )
                 nested_html = " &nbsp; ".join(nested_parts)
                 items += (
                     f"<div class='detail-item' style='grid-column:1/-1'>"
-                    f"<span class='label'>{k}:</span> "
+                    f"<span class='label' data-zh='{label_zh}' data-en='{k}'>{label_zh}:</span> "
                     f"<span style='font-size:11px'>{nested_html}</span></div>"
                 )
                 continue
@@ -674,7 +733,7 @@ class HTMLReporter:
                 val = str(v)
             items += (
                 f"<div class='detail-item'>"
-                f"<span class='label'>{k}:</span> "
+                f"<span class='label' data-zh='{label_zh}' data-en='{k}'>{label_zh}:</span> "
                 f"<span class='value'>{val}</span></div>"
             )
         return f"<div class='detail-grid'>{items}</div>" if items else ""

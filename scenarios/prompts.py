@@ -35,6 +35,7 @@ class TestPrompt:
     weight: int = 3
     expected_traits: list[str] = field(default_factory=list)
     reference_answer: Optional[str] = None
+    label_zh: str = ""
 
 
 # ── Scenario: General Knowledge & Instruction Following ──────
@@ -42,6 +43,7 @@ class TestPrompt:
 GENERAL_CHAT = TestPrompt(
     id="general_chat",
     label="General Chat & Instruction",
+    label_zh="通用对话与指令",
     description="Basic instruction following and general knowledge",
     messages=[
         {
@@ -63,6 +65,7 @@ GENERAL_CHAT = TestPrompt(
 CODE_GENERATION = TestPrompt(
     id="code_generation",
     label="Code Generation",
+    label_zh="代码生成",
     description="Write a non-trivial function from a description",
     messages=[
         {
@@ -84,6 +87,7 @@ CODE_GENERATION = TestPrompt(
 CODE_DEBUGGING = TestPrompt(
     id="code_debugging",
     label="Code Debugging",
+    label_zh="代码调试",
     description="Identify and fix bugs in code",
     messages=[
         {
@@ -114,6 +118,7 @@ CODE_DEBUGGING = TestPrompt(
 MATH_REASONING = TestPrompt(
     id="math_reasoning",
     label="Mathematical Reasoning",
+    label_zh="数学推理",
     description="Solve a multi-step math problem with explanation",
     messages=[
         {
@@ -134,6 +139,7 @@ MATH_REASONING = TestPrompt(
 LOGICAL_REASONING = TestPrompt(
     id="logical_reasoning",
     label="Logical Reasoning",
+    label_zh="逻辑推理",
     description="Complex reasoning with constraints",
     messages=[
         {
@@ -171,6 +177,7 @@ LOGICAL_REASONING = TestPrompt(
 CREATIVE_WRITING = TestPrompt(
     id="creative_writing",
     label="Creative Writing",
+    label_zh="创意写作",
     description="Generate creative, stylistically rich text",
     messages=[
         {
@@ -191,6 +198,7 @@ CREATIVE_WRITING = TestPrompt(
 SUMMARIZATION = TestPrompt(
     id="summarization",
     label="Text Summarization",
+    label_zh="文本摘要",
     description="Condense a long text while preserving key information",
     messages=[
         {
@@ -221,6 +229,7 @@ SUMMARIZATION = TestPrompt(
 TRANSLATION = TestPrompt(
     id="translation",
     label="Translation (EN→ZH)",
+    label_zh="翻译 (英→中)",
     description="Translate English to Chinese with accuracy and nuance",
     messages=[
         {
@@ -242,6 +251,7 @@ TRANSLATION = TestPrompt(
 AGENTIC_REASONING = TestPrompt(
     id="agentic_reasoning",
     label="Agentic Planning",
+    label_zh="智能体规划",
     description="Plan and reason about multi-step tool use tasks",
     messages=[
         {
@@ -269,6 +279,7 @@ AGENTIC_REASONING = TestPrompt(
 LONG_CONTEXT = TestPrompt(
     id="long_context",
     label="Long Context Understanding",
+    label_zh="长上下文理解",
     description="Process and retrieve information from a long document",
     messages=[
         {
@@ -292,6 +303,7 @@ LONG_CONTEXT = TestPrompt(
 MULTIMODAL_UNDERSTANDING = TestPrompt(
     id="multimodal_understanding",
     label="Visual Description (Text Proxy)",
+    label_zh="视觉描述 (文本代理)",
     description="Describe a scene in rich detail (tests spatial understanding)",
     messages=[
         {
@@ -313,6 +325,7 @@ MULTIMODAL_UNDERSTANDING = TestPrompt(
 INSTRUCTION_FOLLOWING = TestPrompt(
     id="instruction_following",
     label="Constrained Instruction Following",
+    label_zh="指令遵循",
     description="Follow precise formatting and content constraints",
     messages=[
         {
