@@ -15,7 +15,13 @@
     # 运行所有模型的完整测试:
     python main.py
 
-    # 仅测试 LLM 模型:
+    # 仅测试指定模型（支持模糊匹配短名称）:
+    python main.py --models "meta/llama-3.2-11b-vision-instruct,01-ai/yi-large"
+
+    # 仅测试可用性和延迟（跳过能力评估）:
+    python main.py --models "meta/llama-3.2-11b-vision-instruct" --tests availability,performance
+
+    # 仅测试 LLM 类别:
     python main.py --scope llm
 
     # 测试样本（每个类别 3 个）并使用高并发:
@@ -93,6 +99,20 @@ def parse_args() -> argparse.Namespace:
         help="跳过 LLM-as-judge 质量评估",
     )
     parser.add_argument(
+        "--models",
+        type=str,
+        default="",
+        help="要测试的模型 ID，用逗号分隔（例如: 'model/aa,model/bb'）。"
+             "设置此项后将忽略 --scope 并仅测试指定模型",
+    )
+    parser.add_argument(
+        "--tests",
+        type=str,
+        default="",
+        help="要运行的测试维度，用逗号分隔。可选: availability,performance,capability,quality"
+             "（默认: 全部运行，--no-quality 仍可跳过 quality）",
+    )
+    parser.add_argument(
         "--api-key",
         type=str,
         default="",
@@ -139,9 +159,15 @@ def main() -> None:
 
     print(f"  找到 {len(all_models)} 个模型")
 
-    # 应用范围过滤器
-    models = _filter_models(all_models, TestScope(args.scope), args.max_models)
-    print(f"  过滤后 ({args.scope}): {len(models)} 个模型")
+    # 应用范围过滤器（--models 优先于 --scope）
+    model_ids: list[str] = []
+    if args.models:
+        model_ids = [mid.strip() for mid in args.models.split(",") if mid.strip()]
+    models = _filter_models(all_models, TestScope(args.scope), args.max_models, model_ids)
+    if model_ids:
+        print(f"  指定模型: {len(models)} 个")
+    else:
+        print(f"  过滤后 ({args.scope}): {len(models)} 个")
 
     # 显示类别分解
     groups = group_by_category(models)
@@ -201,13 +227,20 @@ def main() -> None:
     else:
         # 步骤 2: 仅对可用的模型运行剩余测试
         print(f"\n  🚀 步骤 2: 对 {len(available_models)} 个可用模型运行深度测试...")
-        
-        remaining_testers = [
-            PerformanceTester(client),
-            CapabilityTester(client),
-        ]
-        if settings.ENABLE_QUALITY_EVAL:
-            remaining_testers.append(QualityTester(client))
+
+        # 解析用户指定的测试维度
+        enabled_tests: set[str] = set()
+        if args.tests:
+            enabled_tests = {t.strip().lower() for t in args.tests.split(",") if t.strip()}
+
+        remaining_testers: list = []
+        if not enabled_tests or "performance" in enabled_tests:
+            remaining_testers.append(PerformanceTester(client))
+        if not enabled_tests or "capability" in enabled_tests:
+            remaining_testers.append(CapabilityTester(client))
+        if not enabled_tests or "quality" in enabled_tests:
+            if settings.ENABLE_QUALITY_EVAL:
+                remaining_testers.append(QualityTester(client))
 
         for tester in remaining_testers:
             suite_name = tester.name()
@@ -265,18 +298,40 @@ def _filter_models(
     models: list[ModelInfo],
     scope: TestScope,
     max_models: Optional[int],
+    model_ids: Optional[list[str]] = None,
 ) -> list[ModelInfo]:
-    """根据测试范围过滤模型。
-    
+    """根据测试范围或指定模型 ID 过滤模型。
+
     Args:
         models: 所有模型的列表
         scope: 测试范围枚举值
         max_models: 最大模型数量限制
-        
+        model_ids: 指定的模型 ID 列表（优先级高于 scope）
+
     Returns:
         过滤后的模型列表
     """
-    if scope == TestScope.LLM:
+    if model_ids:
+        # 精确匹配 or 模糊匹配（用户可能只输入短名称）
+        matched: list[ModelInfo] = []
+        for mid in model_ids:
+            found = None
+            for m in models:
+                if m.id == mid:
+                    found = m
+                    break
+            if not found:
+                # 模糊匹配：按 id 末尾（短名称）匹配
+                for m in models:
+                    if m.id.endswith(mid) or mid in m.id:
+                        found = m
+                        break
+            if found:
+                matched.append(found)
+            else:
+                print(f"  ⚠️  未找到模型: {mid}")
+        models = matched
+    elif scope == TestScope.LLM:
         models = [m for m in models if m.category == "llm"]
     elif scope == TestScope.MULTIMODAL:
         models = [m for m in models if m.category == "multimodal"]
