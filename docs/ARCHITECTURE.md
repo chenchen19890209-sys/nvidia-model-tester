@@ -42,6 +42,13 @@
                     │  HTML Reporter  │
                     │ (html_reporter) │
                     └─────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │    Web UI       │
+                    │  (web_ui.py)    │
+                    │  HTTP Server    │
+                    └─────────────────┘
 ```
 
 ---
@@ -248,6 +255,34 @@ function toggleLanguage() {
   // Update all elements with data-zh/data-en attributes
 }
 ```
+
+---
+
+### 8. Web UI Console (`web_ui.py`)
+
+**Tech Stack**: Python built-in `http.server` module (zero external dependencies)
+
+**Responsibility**:
+- Provide a browser-based test control interface
+- RESTful API backend (model listing, test execution, status polling, report serving)
+- Background test execution thread reusing existing test framework
+
+**API Endpoints**:
+
+| Endpoint | Method | Function |
+|----------|--------|----------|
+| `/` | GET | Web console page |
+| `/api/models` | GET | Fetch all models from NVIDIA API |
+| `/api/run` | POST | Start background test thread |
+| `/api/status` | GET | Real-time test progress query |
+| `/api/report?path=...` | GET | View generated HTML report |
+
+**Design Features**:
+- ✅ Single-file deployment, zero external dependencies
+- ✅ Self-contained HTML (inline CSS + JavaScript)
+- ✅ Real-time concurrency validation (NVIDIA 40 req/min limit)
+- ✅ Model search filtering + category quick-select
+- ✅ API call count and time estimation
 
 ---
 

@@ -40,7 +40,19 @@ python main.py --scope sample
 
 # Or test all models
 python main.py
+
+# Test specific models
+python main.py --models "meta/llama-3.2-11b-vision-instruct,01-ai/yi-large"
+
+# Only test availability and latency
+python main.py --models "meta/llama-3.2-11b-vision-instruct" --tests availability,performance
 ```
+
+> 💡 Or use the Web console:
+> ```bash
+> python web_ui.py --port 8080
+> # Open http://127.0.0.1:8080
+> ```
 
 ### 4️⃣ View Report
 
@@ -89,6 +101,29 @@ python main.py --max-models 15
 
 ```bash
 python main.py --output ./my_results
+```
+
+### Use Web Control Console
+
+```bash
+# Start the web UI
+python web_ui.py --port 8080
+
+# Open http://127.0.0.1:8080 in your browser
+# Features: model dropdown (auto-populated), concurrency validation,
+# test dimension checkboxes, real-time progress, report viewer
+```
+
+### Test Specific Models
+
+```bash
+python main.py --models "nvidia/llama-3.3-nemotron-super-49b-v1,nvidia/mistral-large"
+```
+
+### Run Only Certain Test Dimensions
+
+```bash
+python main.py --models "meta/llama-3.2-11b-vision-instruct" --tests availability,performance
 ```
 
 ---

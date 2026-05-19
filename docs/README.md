@@ -24,6 +24,7 @@
 ```
 nvidia-model-tester/
 ├── main.py                  # Main program entry point, coordinates testing workflow
+├── web_ui.py                # Web-based control console (zero dependencies)
 ├── config.py                # Configuration management using Pydantic Settings
 ├── requirements.txt         # Python dependencies
 ├── .env.example            # Environment variable example file
@@ -135,7 +136,30 @@ python main.py --no-quality
 | `--concurrency` | Maximum concurrent requests (1-50) | 5 |
 | `--output` | Report output directory | ./output |
 | `--no-quality` | Skip quality evaluation tests | Quality evaluation enabled |
+| `--models` | Specify model IDs (comma-separated, fuzzy matching) | (none) |
+| `--tests` | Specify test dimensions (availability,performance,capability,quality) | All |
 | `--api-key` | Directly pass API Key | Read from environment variable |
+
+---
+
+### Web Control Console
+
+In addition to the CLI, the project provides a browser-based web console:
+
+```bash
+# Start the web server
+python web_ui.py --port 8080
+
+# Open http://127.0.0.1:8080 in your browser
+```
+
+**Web Console Features**:
+- Model multi-select dropdown (auto-populated from NVIDIA API)
+- Concurrency input with rate limit validation and recommendations
+- Test dimension checkboxes (availability / performance / capability / quality)
+- Real-time progress display with status polling
+- Online report viewer after test completion
+- API call count and time estimation
 
 ---
 

@@ -130,7 +130,8 @@ Pydantic Settings 提供：
 | 成本估算 | ✅ | Token 消耗和费用计算 |
 | 场景矩阵 | ✅ | 热力图展示适用性 |
 | 排行榜 | ✅ | 综合评分排名 |
-| 命令行界面 | ✅ | 丰富的参数选项 |
+| Web 控制台 | ✅ | 浏览器可视化操作 (web_ui.py) |
+| 命令行界面 | ✅ | 丰富的参数选项（--models / --tests） |
 | 配置管理 | ✅ | .env 和环境变量支持 |
 | 错误处理 | ✅ | 优雅的错误恢复 |
 | 日志输出 | ✅ | 实时进度显示 |
@@ -190,7 +191,8 @@ nvidia-model-tester/
 │   ├── utils/api_client.py: 184 行
 │   ├── tests/*.py: ~500 行
 │   ├── scenarios/prompts.py: 347 行
-│   └── reporters/html_reporter.py: 572 行
+│   ├── reporters/html_reporter.py: 572 行
+│   └── web_ui.py: 600+ 行
 │
 ├── 文档：~2,000 行
 │   ├── README.md: 653 行
@@ -337,7 +339,7 @@ nvidia-model-tester/
 
 ### 中期计划（3-6 个月）
 
-- [ ] Web Dashboard 实时监控
+- [x] Web Dashboard 实时监控 (web_ui.py)
 - [ ] 历史数据对比和趋势分析
 - [ ] PDF 报告导出
 - [ ] 支持更多 API 提供商（OpenAI、Anthropic 等）

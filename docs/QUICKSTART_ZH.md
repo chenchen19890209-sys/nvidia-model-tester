@@ -40,7 +40,19 @@ python main.py --scope sample
 
 # 或测试所有模型
 python main.py
+
+# 指定具体模型测试
+python main.py --models "meta/llama-3.2-11b-vision-instruct,01-ai/yi-large"
+
+# 只测试可用性和延迟
+python main.py --models "meta/llama-3.2-11b-vision-instruct" --tests availability,performance
 ```
+
+> 💡 也可使用 Web 浏览器控制台：
+> ```bash
+> python web_ui.py --port 8080
+> # 打开 http://127.0.0.1:8080
+> ```
 
 ### 4️⃣ 查看报告
 
@@ -74,8 +86,24 @@ python main.py --no-quality
 # 指定输出目录
 python main.py --output ./my_results
 
+# 指定具体模型
+python main.py --models "nvidia/llama-3.3-nemotron-super-49b-v1,nvidia/mistral-large"
+
+# 只运行指定测试维度（可用性+延迟）
+python main.py --models "meta/llama-3.2-11b-vision-instruct" --tests availability,performance
+
 # 组合使用：快速测试LLM，高并发
 python main.py --scope llm --concurrency 10 --no-quality
+```
+
+### 使用 Web 浏览器控制台
+
+```bash
+# 启动 Web 界面
+python web_ui.py --port 8080
+
+# 浏览器打开 http://127.0.0.1:8080
+# 功能：模型下拉多选、并发数校验建议、测试维度勾选、实时进度、在线查看报告
 ```
 
 ---

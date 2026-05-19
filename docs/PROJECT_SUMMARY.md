@@ -214,7 +214,7 @@ python main.py --scope sample --concurrency 10 --no-quality
 ## 🔮 Future Enhancements
 
 ### Planned Features
-- [ ] Web UI for configuration and monitoring
+- [x] Web UI for configuration and monitoring (web_ui.py)
 - [ ] Historical comparison between test runs
 - [ ] Custom scenario builder
 - [ ] Plugin system for third-party testers

@@ -62,6 +62,7 @@ Welcome to NVIDIA Model Tester! Use this index to quickly find the documentation
 | **Running Tests** | QUICKSTART.md | 3️⃣ |
 | **CLI Arguments** | README.md | 🚀 Quick Start |
 | **API Key Setup** | QUICKSTART.md | 2️⃣ |
+| **Web Console** | QUICKSTART.md | 3️⃣ |
 | **Test Dimensions** | README.md | 🧪 Test Dimensions |
 | **Report Interpretation** | README.md | 📊 Reports |
 | **Configuration** | README.md | ⚙️ Configuration |
@@ -236,6 +237,7 @@ If the information you need is not in the above documents:
 | Date | Document | Update |
 |------|----------|--------|
 | 2026-05-18 | All documents | Initial version |
+| 2026-05-19 | All documents | Added Web UI, --models, --tests docs |
 
 ---
 

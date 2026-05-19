@@ -24,6 +24,7 @@
 ```
 nvidia-model-tester/
 ├── main.py                  # 主程序入口，协调测试流程
+├── web_ui.py                # Web 浏览器控制台（零依赖）
 ├── config.py                # 配置管理，使用 Pydantic Settings
 ├── requirements.txt         # Python 依赖包
 ├── .env.example            # 环境变量示例文件
@@ -135,7 +136,30 @@ python main.py --no-quality
 | `--concurrency` | 最大并发请求数（1-50） | 5 |
 | `--output` | 报告输出目录 | ./output |
 | `--no-quality` | 跳过质量评估测试 | 启用质量评估 |
+| `--models` | 指定模型 ID（逗号分隔，支持模糊匹配） | （无） |
+| `--tests` | 指定测试维度（availability,performance,capability,quality） | 全部运行 |
 | `--api-key` | 直接传入 API Key | 从环境变量读取 |
+
+---
+
+### Web 浏览器控制台
+
+除了命令行，项目还提供了基于浏览器的 Web 控制台：
+
+```bash
+# 启动 Web 服务器
+python web_ui.py --port 8080
+
+# 浏览器打开 http://127.0.0.1:8080
+```
+
+**Web 控制台功能**：
+- 模型下拉多选（自动从 NVIDIA API 加载）
+- 并发数输入 + NVIDIA 速率限制实时校验建议
+- 测试维度勾选（可用性 / 性能 / 能力 / 质量）
+- 实时进度展示和状态轮询
+- 测试完成后在线查看 HTML 报告
+- 预估 API 调用数和耗时
 
 ---
 
