@@ -312,7 +312,7 @@ class HTMLReporter:
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(html)
 
-        print(f"  \U0001f4c4 Report saved to: {filepath}")
+        print(f"  [Report] saved to: {filepath}")
         return filepath
 
     def _build_html(
@@ -363,20 +363,25 @@ class HTMLReporter:
             # 添加语言切换 JavaScript
             "\n// Language toggle functionality\n"
             "let currentLang = 'zh';\n"
-            "function toggleLanguage() {\n"
-            "  currentLang = currentLang === 'zh' ? 'en' : 'zh';\n"
-            "  document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';\n"
+            "function applyLanguage(lang) {\n"
+            "  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';\n"
             "  const elements = document.querySelectorAll('[data-zh][data-en]');\n"
             "  elements.forEach(el => {\n"
-            "    const text = currentLang === 'zh' ? el.getAttribute('data-zh') : el.getAttribute('data-en');\n"
+            "    const text = lang === 'zh' ? el.getAttribute('data-zh') : el.getAttribute('data-en');\n"
             "    if (el.tagName === 'TITLE') {\n"
             "      document.title = text;\n"
             "    } else {\n"
             "      el.textContent = text;\n"
             "    }\n"
             "  });\n"
-            "  document.getElementById('langToggle').textContent = currentLang === 'zh' ? 'English / 中文' : '中文 / English';\n"
+            "  const btn = document.getElementById('langToggle');\n"
+            "  if (btn) btn.textContent = lang === 'zh' ? 'English / 中文' : '中文 / English';\n"
             "}\n"
+            "function toggleLanguage() {\n"
+            "  currentLang = currentLang === 'zh' ? 'en' : 'zh';\n"
+            "  applyLanguage(currentLang);\n"
+            "}\n"
+            "document.addEventListener('DOMContentLoaded', function() { applyLanguage('zh'); });\n"
             "</script>\n"
             "</body>\n</html>"
         )
@@ -544,8 +549,8 @@ class HTMLReporter:
         # Build table header
         header = (
             "<tr>"
-            "<th style='width:250px'><span data-zh='模型' data-en='Model'>Model</span></th>"
-            "<th style='width:80px'><span data-zh='类型' data-en='Type'>Type</span></th>"
+            "<th style='width:250px'><span data-zh='模型' data-en='Model'>模型</span></th>"
+            "<th style='width:80px'><span data-zh='类型' data-en='Type'>类型</span></th>"
         )
         for sid in sorted_scenarios:
             prompt = PROMPTS_BY_ID.get(sid)
@@ -556,7 +561,7 @@ class HTMLReporter:
                 f"<th style='min-width:80px;text-align:center' "
                 f"title='{label_en}'>"
                 f"<span data-zh='{label_zh}' data-en='{label_en}'>"
-                f"{label_en[:14]}</span></th>"
+                f"{label_zh[:14]}</span></th>"
             )
         header += "</tr>"
 
