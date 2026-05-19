@@ -37,8 +37,19 @@ class ModelReportData:
     def all_errors(self) -> list[str]:
         errors: list[str] = []
         for r in self.results.values():
-            errors.extend(r.errors)
+            for e in r.errors:
+                # Strip httpx's verbose "For more information check" URL
+                cleaned = _clean_httpx_error(e)
+                errors.append(cleaned)
         return errors
+
+
+def _clean_httpx_error(msg: str) -> str:
+    """Strip httpx's verbose 'For more information check' URL from error messages."""
+    import re
+    return re.sub(
+        r"\n?For more information check: https?://\S+", "", msg
+    ).strip()
 
 
 # ── CSS constant (not inside f-string) ─────────────────────────
